@@ -6,6 +6,7 @@ import plotly.graph_objs as go
 
 from app.components.helpers import row, col, container, panel, stat_summary_box
 
+import json
 import numpy as np
 
 external_stylesheets = [
@@ -46,7 +47,7 @@ control_panel = [
         # have info buttons to describe tiers/differences on AWS (and other cloud providers?)
         container([
             row(["Store data in ", 
-                 html.Div([dcc.Dropdown(options=[
+                 html.Div([dcc.Dropdown(disabled=True, options=[
                     {'label': "Amazon S3", 'value': "S3"},
                     {'label': "Amazon S3 Single AZ", 'value': "S3SAZ"},
                     {'label': "Amazon Glacier", 'value': "glacier"}],
@@ -55,7 +56,7 @@ control_panel = [
                  dcc.Input(id='retention-years-tier1', className='border-bottom', min=0, value=2, type='number'),
                  " years."]),
             row(["Then, store data in ", 
-                 html.Div([dcc.Dropdown(options=[
+                 html.Div([dcc.Dropdown(disabled=True, options=[
                     {'label': "Amazon S3", 'value': "S3"},
                     {'label': "Amazon S3 Single AZ", 'value': "S3SAZ"},
                     {'label': "Amazon Glacier", 'value': "glacier"}],
@@ -87,14 +88,12 @@ output_panel = [
         row([
             col("col-md-12", [stat_summary_box("Costs per year", dcc.Graph(id='plot', config={'displayModeBar': False}))])
         ]),
-        row([
-            col("col-md-4", [stat_summary_box("Total lifetime cost: ", "$400")]),
-            col("col-md-4", [stat_summary_box("Average cost per sample: ", "$40")])
-        ])
+        row([html.Div(id="stats-boxes")])
     ])
 ]
 
 app.layout = container([
+    html.Div(id="data-store", style={'display': 'none'}),
     html.H2("The cost of genomic data storage in the clinical lab"),
     row([
         col('col-md-4', control_panel),
@@ -150,7 +149,7 @@ def marginal_s3_cost(gb):
 
 
 @app.callback(
-    Output('plot', 'figure'),
+    Output('data-store', 'children'),
     [Input(component_id='volumes-genome-count', component_property='value'),
      Input(component_id='volumes-exome-count', component_property='value'),
      Input(component_id='volumes-panel-count', component_property='value'),
@@ -162,22 +161,24 @@ def marginal_s3_cost(gb):
      Input(component_id='volume-growth', component_property='value'),
      Input(component_id='reaccess-count', component_property='value')]
 )
-
-def update_plot(genome_count, exome_count, panel_count,
+def do_calculation(genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
                 retention_years_tier1, retention_years_tier2,
                 volume_growth, reaccess_count):
+    total_samples = genome_count + exome_count + panel_count
     total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
     volume_multiplier = (1 + float(volume_growth/100))
     year_range = list(range(0,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, 20)))
 
     yearly_costs = []
     yearly_total_stored = []
+    yearly_samples_run = []
     running_total_s3 = 0
     running_total_glacier = 0
 
     for y in year_range:
         total_gb = total_gb * volume_multiplier
+        total_samples = total_samples * volume_multiplier
         s3_cost      = marginal_s3_cost(12 * running_total_s3)
         glacier_cost = 0.004 * 12 * running_total_glacier
 
@@ -195,43 +196,77 @@ def update_plot(genome_count, exome_count, panel_count,
         else:
             glacier_retrieval_cost = 0
         yearly_total_stored.append(running_total_s3 + running_total_glacier)
-
+        yearly_samples_run.append(total_samples)
         yearly_costs.append(s3_cost + glacier_cost + glacier_retrieval_cost)
 
     y_max = max(500, max(yearly_costs) * 1.1)
     y_max2 = max(50, max(yearly_total_stored) * 1.8)
     if y_max2 >= 1000:
-        yearly_total_stored = np.array(yearly_total_stored)/1000.
+        yearly_total_stored = list(np.array(yearly_total_stored)/1000.)
         y_max2 = y_max2 / 1000.
         units = "TB"
     else:
         units = "GB"
 
-    traces = [
+    data = {
+        "year_range": year_range,
+        "yearly_total_stored": yearly_total_stored,
+        "yearly_samples_run": yearly_samples_run,
+        "yearly_costs": yearly_costs,
+        "units": units,
+        "total_gb": total_gb,
+        "y_max": y_max,
+        "y_max2": y_max2
+    }
+    return json.dumps(data)
 
+
+@app.callback(
+    Output('plot', 'figure'),
+    [Input(component_id='data-store', component_property='children')])
+def update_plot(data):
+    data = json.loads(data)
+    traces = [
         go.Bar(
-            x= year_range,
-            y = yearly_total_stored,
-            name="Total %s Stored" % units,
+            x= data["year_range"],
+            y = data["yearly_total_stored"],
+            name="Total %s Stored" % data["units"],
             yaxis='y2',
             opacity=0.6,
         ),
         go.Scatter(
-            x = year_range,
-            y = yearly_costs,
+            x = data["year_range"],
+            y = data["yearly_costs"],
             name="Yearly Cost"
         ),
     ]
-    
-
     return {
         'data': traces,
         'layout': go.Layout(
             margin=dict(l=70,r=130,t=10,b=30),
             height=500,
-            yaxis = go.layout.YAxis(range=[0,y_max], title="Yearly Cost", tickprefix="$", fixedrange=True),
-            yaxis2 = go.layout.YAxis(range=[0,y_max2], showgrid=False, title="Total %s Stored" % units, ticksuffix=units, overlaying='y', side='right', fixedrange=True),
+            yaxis = go.layout.YAxis(range=[0,data["y_max"]], title="Yearly Cost", tickprefix="$", fixedrange=True),
+            yaxis2 = go.layout.YAxis(range=[0,data["y_max2"]], showgrid=False, title="Total %s Stored" % data["units"], 
+                ticksuffix=data["units"], overlaying='y', side='right', fixedrange=True),
             xaxis = go.layout.XAxis(title="Year", fixedrange=True),
             legend=dict(orientation="h"),
         )
     }
+
+@app.callback(
+    Output('stats-boxes', 'children'),
+    [Input(component_id='data-store', component_property='children')])
+def update_stats(data):
+    data = json.loads(data)
+    lifetime_cost = int(np.array(data["yearly_costs"]).sum())
+    total_samples = np.array(data["yearly_samples_run"]).sum()
+    if total_samples > 0:
+        cost_per_sample = lifetime_cost / total_samples
+    else:
+        cost_per_sample = 0
+    return [
+        col("col-md-4", [stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost)]),
+        col("col-md-4", [stat_summary_box("Total tests run: ", int(total_samples))]),
+        col("col-md-4", [stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)])
+    ]
+
