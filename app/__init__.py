@@ -35,8 +35,10 @@ control_panel = [
                  " tests of ",
                  dcc.Input(id='volumes-panel-size', className='border-bottom', min=0.1, value=1, type='number'),
                  " GB each."]),
-            row(html.Strong(["Total volume per year: ", html.Span(id='volumes-total-count')])),
-            row(html.Strong(["Total GB per year: ", html.Span(id='volumes-total-size')]))
+            row(["Expected volume growth of ", 
+                dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=10, type='number'),
+                " percent per year."]),
+            html.Div(id="volumes-total-div"),
         ])
         
     ]),
@@ -75,9 +77,6 @@ control_panel = [
     ]),
     panel(title="5. Other", children=[
         container([
-            row(["Expected volume growth of ", 
-                dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=10, type='number'),
-                " percent per year."]),
             row(["other: Inflation, test volume growth, expected storage cost decrease"]),
         ])
     ])
@@ -103,37 +102,16 @@ app.layout = container([
 
 
 @app.callback(
-    Output(component_id='volumes-total-count', component_property='children'),
-    [Input(component_id='volumes-genome-count', component_property='value'),
-     Input(component_id='volumes-exome-count', component_property='value'),
-     Input(component_id='volumes-panel-count', component_property='value')]
-)
-def update_total_count(genome_count, exome_count, panel_count):
-    genome_count = int(genome_count)
-    exome_count = int(exome_count)
-    panel_count = int(panel_count)
-    total_tests = genome_count + exome_count + panel_count
-    return total_tests
+    Output(component_id='volumes-total-div', component_property='children'),
+    [Input(component_id='data-store', component_property='children')])
+def update_totals_div(data): 
+    data = json.loads(data)
+    
+    return [
+        row(html.Strong(["Total volume per year: %d" % data["yearly_total_samples"]])),
+        row(html.Strong(["Total GB per year: %d" % data["yearly_total_gb"]]))
+    ]
 
-@app.callback(
-    Output(component_id='volumes-total-size', component_property='children'),
-    [Input(component_id='volumes-genome-count', component_property='value'),
-     Input(component_id='volumes-exome-count', component_property='value'),
-     Input(component_id='volumes-panel-count', component_property='value'),
-     Input(component_id='volumes-genome-size', component_property='value'),
-     Input(component_id='volumes-exome-size', component_property='value'),
-     Input(component_id='volumes-panel-size', component_property='value')]
-)
-def update_totals_div(genome_count, exome_count, panel_count, 
-    genome_size, exome_size, panel_size):
-    genome_count = int(genome_count)
-    exome_count = int(exome_count)
-    panel_count = int(panel_count)
-    genome_size = int(genome_size)
-    exome_size = int(exome_size)
-    panel_size = int(panel_size)
-    total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
-    return total_gb
 
 
 def marginal_s3_cost(gb):
@@ -165,8 +143,8 @@ def do_calculation(genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
                 retention_years_tier1, retention_years_tier2,
                 volume_growth, reaccess_count):
-    total_samples = genome_count + exome_count + panel_count
-    total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
+    running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
+    running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
     volume_multiplier = (1 + float(volume_growth/100))
     year_range = list(range(0,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, 20)))
 
@@ -177,15 +155,15 @@ def do_calculation(genome_count, exome_count, panel_count,
     running_total_glacier = 0
 
     for y in year_range:
-        total_gb = total_gb * volume_multiplier
-        total_samples = total_samples * volume_multiplier
+        running_total_gb = running_total_gb * volume_multiplier
+        running_total_samples = running_total_samples * volume_multiplier
         s3_cost      = marginal_s3_cost(12 * running_total_s3)
         glacier_cost = 0.004 * 12 * running_total_glacier
 
         if y < retention_years_tier1:
-            running_total_s3 += total_gb
+            running_total_s3 += running_total_gb
         elif y < retention_years_tier1 + retention_years_tier2:
-            running_total_glacier += total_gb
+            running_total_glacier += running_total_gb
         else:
             running_total_glacier *= volume_multiplier
         
@@ -196,10 +174,10 @@ def do_calculation(genome_count, exome_count, panel_count,
         else:
             glacier_retrieval_cost = 0
         yearly_total_stored.append(running_total_s3 + running_total_glacier)
-        yearly_samples_run.append(total_samples)
+        yearly_samples_run.append(running_total_samples)
         yearly_costs.append(s3_cost + glacier_cost + glacier_retrieval_cost)
 
-    y_max = max(500, max(yearly_costs) * 1.1)
+    y_max = max(50, max(yearly_costs) * 1.1)
     y_max2 = max(50, max(yearly_total_stored) * 1.8)
     if y_max2 >= 1000:
         yearly_total_stored = list(np.array(yearly_total_stored)/1000.)
@@ -214,7 +192,8 @@ def do_calculation(genome_count, exome_count, panel_count,
         "yearly_samples_run": yearly_samples_run,
         "yearly_costs": yearly_costs,
         "units": units,
-        "total_gb": total_gb,
+        "yearly_total_gb": yearly_total_gb,
+        "yearly_total_samples": yearly_total_samples,
         "y_max": y_max,
         "y_max2": y_max2
     }
