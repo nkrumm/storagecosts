@@ -58,29 +58,41 @@ def do_calculation(genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
                 retention_years_tier1, retention_years_tier2,
                 volume_growth, reaccess_count):
+    
     running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
     running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
+    
     volume_multiplier = (1 + float(volume_growth/100))
-    year_range = list(range(0,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, 20)))
+    
+    year_range = list(range(1,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, 21)))
 
     yearly_costs = []
     yearly_total_stored = []
+    yearly_total_gb_stored = []
     yearly_samples_run = []
     running_total_tier1 = 0
     running_total_tier2 = 0
 
     for y in year_range:
-        running_total_gb = running_total_gb * volume_multiplier
-        running_total_samples = running_total_samples * volume_multiplier
-        s3_cost      = marginal_s3_cost(12 * running_total_tier1)
-        glacier_cost = 0.004 * 12 * running_total_tier2
-
-        if y < retention_years_tier1:
+        if y <= retention_years_tier1:
+            # while in tier1 retention phase, all data is simply 
+            # put into tier1 storage
             running_total_tier1 += running_total_gb
-        elif y < retention_years_tier1 + retention_years_tier2:
-            running_total_tier2 += running_total_gb
+        elif y <= (retention_years_tier1 + retention_years_tier2):
+            # once we are in the range where tier2 storage is used
+            # data from `y - retention_years_tier1` is moved into 
+            # tier2, and the runnign total is added to tier1
+            running_total_tier1 -= yearly_total_gb_stored[y-retention_years_tier1]
+            running_total_tier2 += yearly_total_gb_stored[y-retention_years_tier1]
+            running_total_tier1 += running_total_gb
         else:
-            running_total_tier2 *= volume_multiplier
+            # Once we are outside the life of the data, we discard tier2 
+            running_total_tier2 -= yearly_total_gb_stored[y-(retention_years_tier1 + retention_years_tier2)]
+            # data is still moved from tier1 to tier2
+            running_total_tier1 -= yearly_total_gb_stored[y-retention_years_tier1]
+            running_total_tier2 += yearly_total_gb_stored[y-retention_years_tier1]
+            # we add new data to tier1
+            running_total_tier1 += running_total_gb
         
         if (running_total_tier1 + running_total_tier2) > 0:
             fraction_in_glacier = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
@@ -88,9 +100,18 @@ def do_calculation(genome_count, exome_count, panel_count,
             glacier_retrieval_cost = (fraction_in_glacier * reaccess_count * mean * 0.03) + (reaccess_count * 0.01)
         else:
             glacier_retrieval_cost = 0
+
+        # calculate costs
+        s3_cost      = marginal_s3_cost(12 * running_total_tier1)
+        glacier_cost = 0.004 * 12 * running_total_tier2
         yearly_total_stored.append(running_total_tier1 + running_total_tier2)
+        yearly_total_gb_stored.append(running_total_gb)
         yearly_samples_run.append(running_total_samples)
         yearly_costs.append(s3_cost + glacier_cost + glacier_retrieval_cost)
+        
+        # increase total samples and GB generated in this iteration
+        running_total_gb = running_total_gb * volume_multiplier
+        running_total_samples = running_total_samples * volume_multiplier
 
     y_max = max(50, max(yearly_costs) * 1.1)
     y_max2 = max(50, max(yearly_total_stored) * 1.8)
