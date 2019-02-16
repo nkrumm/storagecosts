@@ -4,8 +4,8 @@ import dash_html_components as html
 def row(children, **kwargs):
     return html.Div(className='row', children=children, **kwargs)
 
-def col(className, children):
-    return html.Div(className=className, children=children)
+def col(className, children, **kwargs):
+    return html.Div(className=className, children=children, **kwargs)
 
 def container(children, fluid=False, **kwargs):
     classname = "container-fluid" if fluid else "container"

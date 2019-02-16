@@ -83,22 +83,21 @@ control_panel = [
 ]
 
 output_panel = [
-    container([
-        row([
-            col("col-md-12", [stat_summary_box("Costs per year", dcc.Graph(id='plot', config={'displayModeBar': False}))])
-        ]),
-        row([html.Div(id="stats-boxes")])
-    ])
+    html.Div(stat_summary_box(
+        "Costs per year",
+        dcc.Graph(id='plot', config={'displayModeBar': False}, style={'width': 800})
+    )),
+    html.Div(id="stats-boxes")
 ]
 
-app.layout = container([
+app.layout = html.Div([
     html.Div(id="data-store", style={'display': 'none'}),
     html.H2("The cost of genomic data storage in the clinical lab"),
     row([
-        col('col-md-4', control_panel),
-        col('col-md-8', output_panel)
+        col('col-md-4', control_panel, style={"width": 600}),
+        col('col-md-8', output_panel, style={"width": "auto"})
     ], style={"marginTop": 30})
-], fluid=True)
+])
 
 
 @app.callback(
@@ -222,7 +221,7 @@ def update_plot(data):
     return {
         'data': traces,
         'layout': go.Layout(
-            margin=dict(l=70,r=130,t=10,b=30),
+            margin=dict(l=70,r=40,t=10,b=30),
             height=500,
             yaxis = go.layout.YAxis(range=[0,data["y_max"]], title="Yearly Cost", tickprefix="$", fixedrange=True),
             yaxis2 = go.layout.YAxis(range=[0,data["y_max2"]], showgrid=False, title="Total %s Stored" % data["units"], 
@@ -244,8 +243,8 @@ def update_stats(data):
     else:
         cost_per_sample = 0
     return [
-        col("col-md-4", [stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost)]),
+        col("col-md-4", [stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost)], style={"padding-left": 0}),
         col("col-md-4", [stat_summary_box("Total tests run: ", int(total_samples))]),
-        col("col-md-4", [stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)])
+        col("col-md-4", [stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)], style={"padding-right": 0})
     ]
 
