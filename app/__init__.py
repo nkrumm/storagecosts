@@ -66,29 +66,29 @@ def do_calculation(genome_count, exome_count, panel_count,
     yearly_costs = []
     yearly_total_stored = []
     yearly_samples_run = []
-    running_total_s3 = 0
-    running_total_glacier = 0
+    running_total_tier1 = 0
+    running_total_tier2 = 0
 
     for y in year_range:
         running_total_gb = running_total_gb * volume_multiplier
         running_total_samples = running_total_samples * volume_multiplier
-        s3_cost      = marginal_s3_cost(12 * running_total_s3)
-        glacier_cost = 0.004 * 12 * running_total_glacier
+        s3_cost      = marginal_s3_cost(12 * running_total_tier1)
+        glacier_cost = 0.004 * 12 * running_total_tier2
 
         if y < retention_years_tier1:
-            running_total_s3 += running_total_gb
+            running_total_tier1 += running_total_gb
         elif y < retention_years_tier1 + retention_years_tier2:
-            running_total_glacier += running_total_gb
+            running_total_tier2 += running_total_gb
         else:
-            running_total_glacier *= volume_multiplier
+            running_total_tier2 *= volume_multiplier
         
-        if (running_total_s3 + running_total_glacier) > 0:
-            fraction_in_glacier = running_total_glacier / float(running_total_s3 + running_total_glacier)
+        if (running_total_tier1 + running_total_tier2) > 0:
+            fraction_in_glacier = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
             mean = np.mean(genome_count * [genome_size] + exome_count * [exome_size] + panel_count * [panel_size])
             glacier_retrieval_cost = (fraction_in_glacier * reaccess_count * mean * 0.03) + (reaccess_count * 0.01)
         else:
             glacier_retrieval_cost = 0
-        yearly_total_stored.append(running_total_s3 + running_total_glacier)
+        yearly_total_stored.append(running_total_tier1 + running_total_tier2)
         yearly_samples_run.append(running_total_samples)
         yearly_costs.append(s3_cost + glacier_cost + glacier_retrieval_cost)
 
