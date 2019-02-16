@@ -73,6 +73,9 @@ def do_calculation(genome_count, exome_count, panel_count,
     running_total_tier1 = 0
     running_total_tier2 = 0
 
+    tier1_access_cost = 0
+    tier2_access_cost = 0.01
+
     for y in year_range:
         if y <= retention_years_tier1:
             # while in tier1 retention phase, all data is simply 
@@ -94,12 +97,20 @@ def do_calculation(genome_count, exome_count, panel_count,
             # we add new data to tier1
             running_total_tier1 += running_total_gb
         
+        # calculate re-access costs
         if (running_total_tier1 + running_total_tier2) > 0:
-            fraction_in_glacier = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
-            mean = np.mean(genome_count * [genome_size] + exome_count * [exome_size] + panel_count * [panel_size])
-            glacier_retrieval_cost = (fraction_in_glacier * reaccess_count * mean * 0.03) + (reaccess_count * 0.01)
+            total_gb_reaccessed = ((reaccess_count * genome_count / yearly_total_samples) * genome_size) + \
+                                  ((reaccess_count * exome_count / yearly_total_samples) * exome_size) + \
+                                  ((reaccess_count * panel_count / yearly_total_samples) * panel_size)
+
+
+            fraction_in_tier2 = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
+            
+            tier1_reaccess_cost = total_gb_reaccessed * (1-fraction_in_tier2) * tier1_access_cost
+            tier2_reaccess_cost = total_gb_reaccessed * (fraction_in_tier2) * tier2_access_cost
+            reaccess_cost = tier1_reaccess_cost + tier2_reaccess_cost
         else:
-            glacier_retrieval_cost = 0
+            reaccess_cost = 0
 
         # calculate costs
         s3_cost      = marginal_s3_cost(12 * running_total_tier1)
@@ -107,7 +118,7 @@ def do_calculation(genome_count, exome_count, panel_count,
         yearly_total_stored.append(running_total_tier1 + running_total_tier2)
         yearly_total_gb_stored.append(running_total_gb)
         yearly_samples_run.append(running_total_samples)
-        yearly_costs.append(s3_cost + glacier_cost + glacier_retrieval_cost)
+        yearly_costs.append(s3_cost + glacier_cost + reaccess_cost)
         
         # increase total samples and GB generated in this iteration
         running_total_gb = running_total_gb * volume_multiplier
