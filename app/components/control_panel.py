@@ -58,8 +58,19 @@ control_panel = [
     panel(title="4. Data re-access", children=[
         #"rate/# of cases accessed each year; potentially split by years/storage tiers"
         container([
-            row(["# of cases re-accessed per year: ", 
-                 dcc.Input(id='reaccess-count', className='border-bottom', min=0, value=0, type='number')])
+            row(["Re-access", 
+                 dcc.Input(id='reaccess-count', className='border-bottom', min=0, value=0, type='number'),
+                 "cases per year to ",
+                 html.Div([dcc.Dropdown(
+                        id='reaccess-target', 
+                        options=[
+                            {'label': "Amazon/EC2", 'value': "amazon"},
+                            {'label': "the internet", 'value': "internet"}
+                        ], value='amazon', clearable=False, multi=False, 
+                        className='border-bottom-input')],
+                    style={"display": "inline-block", "width": 200})
+                 ])
+
         ])
     ]),
     panel(title="5. Other", children=[

@@ -28,18 +28,46 @@ app.layout = html.Div([
 ])
 
 
+def calc_cost(cost_buckets: list, amount):
+    if amount <= cost_buckets[0][0] or len(cost_buckets) < 2:
+        return cost_buckets[0][1] * amount
+    return calc_cost(cost_buckets, cost_buckets[0][0]) + calc_cost(cost_buckets[1:], amount - cost_buckets[0][0])
 
 def marginal_s3_cost(gb):
     # First 50 TB / Month $0.023 per GB
     # Next 450 TB / Month $0.022 per GB
     # Over 500 TB / Month $0.021 per GB
-    if gb <= 50000:
-        return gb * 0.023
-    elif gb <= 500000:
-        return (50000 * 0.023) + ((gb-50000)*0.022)
-    else:
-        return (50000 * 0.023) + (450000*0.022) + ((gb- 500000) *0.021)
+    buckets = [[50000, 0.023], [450000, 0.022], [np.inf, 0.021]]
+    return calc_cost(buckets, gb)
 
+def tier1_marginal_transfer_cost(gb, dest="internet"):
+    if dest == "internet":
+        # S3 to INTERNET
+        # Up to 1 GB / Month  $0.00 per GB
+        # Next 9.999 TB / Month   $0.09 per GB
+        # Next 40 TB / Month  $0.085 per GB
+        # Next 100 TB / Month $0.07 per GB
+        # Greater than 150 TB / Month $0.05 per GB
+        buckets = [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
+        return calc_cost(buckets, gb)
+    else:
+    # to EC2 = $0.02 per GB
+        return 0
+
+def tier2_marginal_transfer_cost(gb, dest="internet"):
+    if dest == "internet":
+        # Glacier to INTERNET
+        # Up to 1 GB / Month  $0.00 per GB
+        # Next 9.999 TB / Month   $0.09 per GB
+        # Next 40 TB / Month  $0.085 per GB
+        # Next 100 TB / Month $0.07 per GB
+        # Greater than 150 TB / Month $0.05 per GB
+        buckets = [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
+        return calc_cost(buckets, gb)
+    else:
+    # to EC2 = $0.02 per GB
+        return gb * 0.02
+    
 
 @app.callback(
     Output('data-store', 'children'),
@@ -52,12 +80,13 @@ def marginal_s3_cost(gb):
      Input(component_id='retention-years-tier1', component_property='value'),
      Input(component_id='retention-years-tier2', component_property='value'),
      Input(component_id='volume-growth', component_property='value'),
-     Input(component_id='reaccess-count', component_property='value')]
+     Input(component_id='reaccess-count', component_property='value'),
+     Input(component_id='reaccess-target', component_property='value')]
 )
 def do_calculation(genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
                 retention_years_tier1, retention_years_tier2,
-                volume_growth, reaccess_count):
+                volume_growth, reaccess_count, reaccess_target):
     
     running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
     running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
@@ -77,6 +106,7 @@ def do_calculation(genome_count, exome_count, panel_count,
     tier2_access_cost = 0.01
 
     for y in year_range:
+        yearly_total_gb_stored.append(running_total_gb)
         if y <= retention_years_tier1:
             # while in tier1 retention phase, all data is simply 
             # put into tier1 storage
@@ -103,12 +133,14 @@ def do_calculation(genome_count, exome_count, panel_count,
                                   ((reaccess_count * exome_count / yearly_total_samples) * exome_size) + \
                                   ((reaccess_count * panel_count / yearly_total_samples) * panel_size)
 
-
+            fraction_in_tier1 = running_total_tier1 / float(running_total_tier1 + running_total_tier2)
             fraction_in_tier2 = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
             
             tier1_reaccess_cost = total_gb_reaccessed * (1-fraction_in_tier2) * tier1_access_cost
             tier2_reaccess_cost = total_gb_reaccessed * (fraction_in_tier2) * tier2_access_cost
-            reaccess_cost = tier1_reaccess_cost + tier2_reaccess_cost
+            transfer_cost = tier1_marginal_transfer_cost(total_gb_reaccessed * (fraction_in_tier1), dest=reaccess_target) + \
+                            tier2_marginal_transfer_cost(total_gb_reaccessed * (fraction_in_tier2), dest=reaccess_target)
+            reaccess_cost = tier1_reaccess_cost + tier2_reaccess_cost + transfer_cost
         else:
             reaccess_cost = 0
 
@@ -116,7 +148,6 @@ def do_calculation(genome_count, exome_count, panel_count,
         s3_cost      = marginal_s3_cost(12 * running_total_tier1)
         glacier_cost = 0.004 * 12 * running_total_tier2
         yearly_total_stored.append(running_total_tier1 + running_total_tier2)
-        yearly_total_gb_stored.append(running_total_gb)
         yearly_samples_run.append(running_total_samples)
         yearly_costs.append(s3_cost + glacier_cost + reaccess_cost)
         
