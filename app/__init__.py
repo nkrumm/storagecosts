@@ -265,7 +265,7 @@ def update_stats(data):
 @app.callback(
     Output('control-panel-volumes-custom-pane', 'style'),
     [Input(component_id='control-panel-volumes-pane-toggle', component_property='on')])
-def display_volume_pane(pane_state_is_complex):
+def display_volume_pane_custom(pane_state_is_complex):
     if pane_state_is_complex:
         return {'display': 'block'}
     else:
@@ -274,7 +274,7 @@ def display_volume_pane(pane_state_is_complex):
 @app.callback(
     Output('control-panel-volumes-simple-pane', 'style'),
     [Input(component_id='control-panel-volumes-pane-toggle', component_property='on')])
-def display_volume_pane(pane_state_is_complex):
+def display_volume_pane_simple(pane_state_is_complex):
     if pane_state_is_complex:
         return {'display': 'none'}
     else:
