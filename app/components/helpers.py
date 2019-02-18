@@ -14,9 +14,15 @@ def container(children, fluid=False, **kwargs):
 def well(children):
     return html.Div(className='well', children=children)
 
-def panel(title, children):
+def panel(title, children, additional_controls=None):
     if title:
-        title = html.Div(className='panel-heading', children=[html.H4(title, className="panel-title")])
+        if additional_controls:
+            title = html.Div(className='panel-heading', children=[
+                html.H4(title, className="panel-title", style={"display":"inline"}), 
+                html.Span(additional_controls)
+            ])
+        else:
+            title = html.Div(className='panel-heading', children=[html.H4(title, className="panel-title")])
     else:
         title = None
     body =  html.Div(className='panel-body', children=children)

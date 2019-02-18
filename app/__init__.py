@@ -71,7 +71,13 @@ def tier2_marginal_transfer_cost(gb, dest="internet"):
 
 @app.callback(
     Output('data-store', 'children'),
-    [Input(component_id='volumes-genome-count', component_property='value'),
+    [
+     Input(component_id='control-panel-volumes-pane-toggle', component_property='on'),
+     Input(component_id='simple-volumes-genome-count', component_property='value'),
+     Input(component_id='simple-volumes-exomes-count', component_property='value'),
+     Input(component_id='simple-volumes-large-panel-count', component_property='value'),
+     #Input(component_id='simple-volumes-small-panel-count', component_property='value'),
+     Input(component_id='volumes-genome-count', component_property='value'),
      Input(component_id='volumes-exome-count', component_property='value'),
      Input(component_id='volumes-panel-count', component_property='value'),
      Input(component_id='volumes-genome-size', component_property='value'),
@@ -83,11 +89,23 @@ def tier2_marginal_transfer_cost(gb, dest="internet"):
      Input(component_id='reaccess-count', component_property='value'),
      Input(component_id='reaccess-target', component_property='value')]
 )
-def do_calculation(genome_count, exome_count, panel_count,
+def do_calculation(
+                is_custom,
+                simple_genome_count, simple_exome_count, 
+                simple_large_panel_count, #simple_small_panel_count,
+                genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
                 retention_years_tier1, retention_years_tier2,
                 volume_growth, reaccess_count, reaccess_target):
     
+    if not is_custom:
+        genome_count = simple_genome_count
+        genome_size = 120
+        exome_count = simple_exome_count
+        exome_size = 6
+        panel_count = simple_large_panel_count
+        panel_size = 1
+
     running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
     running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
     
@@ -232,3 +250,21 @@ def update_stats(data):
             col("col-md-4", [stat_summary_box("Yearly data generated: ", "%d GB" % data["yearly_total_gb"])])
         ])
     ]
+
+@app.callback(
+    Output('control-panel-volumes-custom-pane', 'style'),
+    [Input(component_id='control-panel-volumes-pane-toggle', component_property='on')])
+def display_volume_pane(pane_state_is_complex):
+    if pane_state_is_complex:
+        return {'display': 'block'}
+    else:
+        return {'display': 'none'}
+
+@app.callback(
+    Output('control-panel-volumes-simple-pane', 'style'),
+    [Input(component_id='control-panel-volumes-pane-toggle', component_property='on')])
+def display_volume_pane(pane_state_is_complex):
+    if pane_state_is_complex:
+        return {'display': 'none'}
+    else:
+        return {'display': 'block'}

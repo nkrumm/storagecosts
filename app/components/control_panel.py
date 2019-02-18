@@ -1,33 +1,56 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-
+from dash_daq import BooleanSwitch
 from app.components.helpers import row, col, container, panel, stat_summary_box
 
+custom_size_toggle = html.Div([
+    html.Span("Customize", style={'color': 'darkgray', 'position': 'relative', 'top': '-8px', 'left': '-4px', 'float': 'left !important', 'display': 'inline-block'}),
+    BooleanSwitch(id='control-panel-volumes-pane-toggle', on=False, style={'position': 'relative', 'top': '-2px', 'float': 'left !important', 'display': 'inline-block'})
+], style={'display': 'inline-block'}, className='pull-right')
+
 control_panel = [
-    panel(title="1. Test volumes", children=[
+    panel(title="1. Test volumes", 
+        additional_controls=[custom_size_toggle],
+        children=[
         # potentially support ranges? Also allow for average size to be modified?
-        container([
-            row(["Genomes/year: ", 
-                 dcc.Input(id='volumes-genome-count', className='border-bottom', min=0, value=0, type='number'),
-                 " tests of ",
-                 dcc.Input(id='volumes-genome-size', className='border-bottom', min=1, value=120, type='number'),
-                 " GB each."]),
-            row(["Exomes/year: ", 
-                 dcc.Input(id='volumes-exome-count', className='border-bottom', min=0, value=0, type='number'),
-                 " tests of ",
-                 dcc.Input(id='volumes-exome-size', className='border-bottom', min=1, value=6, type='number'),
-                 " GB each."]),
-            row(["Targeted Panels/year: ", 
-                 dcc.Input(id='volumes-panel-count', className='border-bottom', min=0, value=0, type='number'),
-                 " tests of ",
-                 dcc.Input(id='volumes-panel-size', className='border-bottom', min=0.1, value=1, type='number'),
-                 " GB each."]),
-            row(["Expected volume growth of ", 
-                dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=10, type='number'),
-                " percent per year."])
-        ])
-        
+        html.Div(
+            id="control-panel-volumes-simple-pane",
+            style={'display': 'block'},
+            children=[
+                container([
+                    row([dcc.Input(id='simple-volumes-genome-count', className='border-bottom', min=0, value=0, type='number'),
+                        " Genomes per year ", html.Span("(30x coverage / 120GB each).", className='text-muted', style={'fontSize': "14px"})]),
+                    row([dcc.Input(id='simple-volumes-exomes-count', className='border-bottom', min=0, value=0, type='number'),
+                        " Exomes per year ", html.Span("(6GB each).", className='text-muted', style={'fontSize': "14px"})]),
+                    row([dcc.Input(id='simple-volumes-large-panel-count', className='border-bottom', min=0, value=0, type='number'),
+                        " Large panels per year ", html.Span("(300 genes / 1GB each).", className='text-muted', style={'fontSize': "14px"})]),
+                    # row([dcc.Input(id='simple-volumes-small-panel-count', className='border-bottom', min=0, value=0, type='number'),
+                    #     " Small panel (30 genes) per year"]),
+                ])
+            ]),
+        html.Div(
+            id="control-panel-volumes-custom-pane",
+            style={'display': 'none'},
+            children=[
+                container([
+                    row(["Genomes/year: ", 
+                         dcc.Input(id='volumes-genome-count', className='border-bottom', min=0, value=0, type='number'),
+                         " tests of ",
+                         dcc.Input(id='volumes-genome-size', className='border-bottom', min=1, value=120, type='number'),
+                         " GB each."]),
+                    row(["Exomes/year: ", 
+                         dcc.Input(id='volumes-exome-count', className='border-bottom', min=0, value=0, type='number'),
+                         " tests of ",
+                         dcc.Input(id='volumes-exome-size', className='border-bottom', min=1, value=6, type='number'),
+                         " GB each."]),
+                    row(["Targeted Panels/year: ", 
+                         dcc.Input(id='volumes-panel-count', className='border-bottom', min=0, value=0, type='number'),
+                         " tests of ",
+                         dcc.Input(id='volumes-panel-size', className='border-bottom', min=0.1, value=1, type='number'),
+                         " GB each."])
+                ])
+            ])
     ]),
     panel(title="2. File types", children=["BAM or FASTQ? Compression?"]),
         # Likely just some check/radio boxes
@@ -75,7 +98,12 @@ control_panel = [
     ]),
     panel(title="5. Other", children=[
         container([
-            row(["other: Inflation, test volume growth, expected storage cost decrease"]),
+            row(["Expected volume growth of ", 
+                        dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=10, type='number'),
+                        " percent per year."]),
+            row(["Inflation ", 
+                        dcc.Input(id='inflation-rate', className='border-bottom', min=0, max=100, value=2, type='number'),
+                        " percent per year."]),
         ])
     ])
 ]
