@@ -23,10 +23,20 @@ body {
     text-align: center !important;
     position: relative;
     top: 4px;
-}*/
+}
+
 input::-webkit-outer-spin-button, 
 input::-webkit-inner-spin-button { margin-left: 5px !important;} 
 
+input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  margin: 0px 4px 0px 18px;
+}
+
+input[type='radio']:checked {
+  background: #333;
+}
 .panel-body {
 	font-size: 18px !important;
 	line-height: 35px !important;

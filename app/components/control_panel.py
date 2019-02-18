@@ -52,7 +52,18 @@ control_panel = [
                 ])
             ])
     ]),
-    panel(title="2. File types", children=["BAM or FASTQ? Compression?"]),
+    panel(title="2. File types", children=[
+        html.Div([dcc.RadioItems(
+            id='file-type-radio',
+            options=[
+                {'label': 'BAM', 'value': 'BAM'},
+                {'label': 'CRAM v2', 'value': 'CRAMV2'},
+                {'label': 'CRAM v3', 'value': 'CRAMV3'}
+            ],
+            value='BAM',
+            labelStyle={'fontWeight': 'normal', 'paddingLeft': 10}
+        )])
+        ]),
         # Likely just some check/radio boxes
     panel(title="3. Retention time and storage", children=[
         # use a slider to create two storage tiers

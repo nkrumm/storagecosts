@@ -83,6 +83,7 @@ def tier2_marginal_transfer_cost(gb, dest="internet"):
      Input(component_id='volumes-genome-size', component_property='value'),
      Input(component_id='volumes-exome-size', component_property='value'),
      Input(component_id='volumes-panel-size', component_property='value'),
+     Input(component_id='file-type-radio', component_property='value'),
      Input(component_id='retention-years-tier1', component_property='value'),
      Input(component_id='retention-years-tier2', component_property='value'),
      Input(component_id='volume-growth', component_property='value'),
@@ -95,16 +96,26 @@ def do_calculation(
                 simple_large_panel_count, #simple_small_panel_count,
                 genome_count, exome_count, panel_count,
                 genome_size, exome_size, panel_size, 
+                file_type,
                 retention_years_tier1, retention_years_tier2,
                 volume_growth, reaccess_count, reaccess_target):
     
+    if file_type == "BAM":
+        compression = 1
+    elif file_type == "CRAMV2":
+        compression = 0.7
+    elif file_type == "CRAMV3":
+        compression = 0.6
+    else:
+        raise("Invalid compression type")
+
     if not is_custom:
         genome_count = simple_genome_count
-        genome_size = 120
+        genome_size = 120 * compression
         exome_count = simple_exome_count
-        exome_size = 6
+        exome_size = 6 * compression
         panel_count = simple_large_panel_count
-        panel_size = 1
+        panel_size = 1 * compression
 
     running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
     running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
