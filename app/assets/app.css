@@ -77,3 +77,7 @@ h4.stats-value {
     padding: 0px 11px 2px 0px;
     font-size: 28px;
 }
+
+#stats-boxes > div.well {
+    height: 87px;
+}

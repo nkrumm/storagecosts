@@ -155,6 +155,9 @@ def do_calculation(
     year_range = list(range(1,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, total_years_simulated+1)))
 
     yearly_costs = []
+    yearly_tier1_storage_cost = []
+    yearly_tier2_storage_cost = []
+    yearly_reaccess_cost = []
     yearly_total_stored = []
     yearly_total_gb_stored = []
     yearly_samples_run = []
@@ -208,6 +211,9 @@ def do_calculation(
 
         
         # record costs
+        yearly_tier1_storage_cost.append(tier1_cost)
+        yearly_tier2_storage_cost.append(tier2_cost)
+        yearly_reaccess_cost.append(reaccess_cost)
         yearly_total_stored.append(running_total_tier1 + running_total_tier2)
         yearly_samples_run.append(running_total_samples)
         yearly_costs.append(tier1_cost + tier2_cost + reaccess_cost)
@@ -230,6 +236,9 @@ def do_calculation(
         "yearly_total_stored": yearly_total_stored,
         "yearly_samples_run": yearly_samples_run,
         "yearly_costs": yearly_costs,
+        "yearly_tier1_storage_cost": yearly_tier1_storage_cost,
+        "yearly_tier2_storage_cost": yearly_tier2_storage_cost,
+        "yearly_reaccess_cost": yearly_reaccess_cost,
         "units": units,
         "yearly_total_gb": yearly_total_gb,
         "yearly_total_samples": yearly_total_samples,
@@ -272,6 +281,33 @@ def update_plot(data):
     }
 
 @app.callback(
+    Output('piechart', 'figure'),
+    [Input(component_id='data-store', component_property='children')])
+def update_piechart(data):
+    data = json.loads(data)
+    labels = ["Tier 1 Cost", "Tier 2 Cost", "Reaccess Cost"]
+    values = [
+        sum(data["yearly_tier1_storage_cost"]),
+        sum(data["yearly_tier2_storage_cost"]),
+        sum(data["yearly_reaccess_cost"])
+    ]
+    traces = [go.Pie(
+        labels=labels, values=values, 
+        direction='clockwise',
+        sort=False,
+        textinfo="percent",
+        hoverinfo="none"
+
+    )]
+    return {
+        'data': traces,
+        'layout': go.Layout(
+            margin=dict(l=30,r=10,t=20,b=0),
+            legend=dict(x=1.3, y=0.8)
+        )
+    }
+
+@app.callback(
     Output('stats-boxes', 'children'),
     [Input(component_id='data-store', component_property='children')])
 def update_stats(data):
@@ -283,15 +319,8 @@ def update_stats(data):
     else:
         cost_per_sample = 0
     return [
-        row([
-            col("col-md-4", [stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost)]),
-            col("col-md-4", [stat_summary_box("Total tests run: ", int(total_samples))]),
-            col("col-md-4", [stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)])
-        ]),
-        row([
-            col("col-md-4", [stat_summary_box("Yearly tests run: ", data["yearly_total_samples"])]),
-            col("col-md-4", [stat_summary_box("Yearly data generated: ", "%d GB" % data["yearly_total_gb"])])
-        ])
+        stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost),
+        stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)
     ]
 
 @app.callback(
