@@ -33,13 +33,6 @@ def calc_cost(cost_buckets: list, amount):
         return cost_buckets[0][1] * amount
     return calc_cost(cost_buckets, cost_buckets[0][0]) + calc_cost(cost_buckets[1:], amount - cost_buckets[0][0])
 
-def marginal_s3_cost(gb):
-    # First 50 TB / Month $0.023 per GB
-    # Next 450 TB / Month $0.022 per GB
-    # Over 500 TB / Month $0.021 per GB
-    buckets = [[50000, 0.023], [450000, 0.022], [np.inf, 0.021]]
-    return calc_cost(buckets, gb)
-
 def tier1_marginal_transfer_cost(gb, dest="internet"):
     if dest == "internet":
         # S3 to INTERNET
@@ -68,6 +61,38 @@ def tier2_marginal_transfer_cost(gb, dest="internet"):
     # to EC2 = $0.02 per GB
         return gb * 0.02
     
+storage_cost_buckets = {
+    "S3": [[50000, 0.023], [450000, 0.022], [np.inf, 0.021]],
+    "glacier": [[np.inf, 0.004]],
+    "deepglacier": [[np.inf, 0.00099]],
+    "S3IA":    [[np.inf, 0.0125]],
+    "S3IASAZ": [[np.inf, 0.01]]
+}
+
+def calc_storage_cost(storage_type, gb):
+    return calc_cost(storage_cost_buckets[storage_type], gb)
+
+def calc_reaccess_cost(storage_type, gb):
+    if storage_type in ["S3IA", "S3IASAZ"]:
+        return gb * 0.01
+    elif storage_type in ["glacier", "deepglacier"]:
+        return gb * 0.0025
+    else:
+        return 0
+
+
+def calc_transfer_cost(storage_type, destination, gb):
+    if storage_type in ["S3", "glacier", "deepglacier", "S3IA", "S3IASAZ"]:
+        if destination == "internet":
+            return 0.02 * gb
+        elif destination == "amazon":
+            return 0
+        else:
+            raise("invalid destination")
+    else:
+        return 0
+
+
 
 @app.callback(
     Output('data-store', 'children'),
@@ -86,6 +111,8 @@ def tier2_marginal_transfer_cost(gb, dest="internet"):
      Input(component_id='file-type-radio', component_property='value'),
      Input(component_id='retention-years-tier1', component_property='value'),
      Input(component_id='retention-years-tier2', component_property='value'),
+     Input(component_id='tier1-storage-type', component_property='value'),
+     Input(component_id='tier2-storage-type', component_property='value'),
      Input(component_id='volume-growth', component_property='value'),
      Input(component_id='reaccess-count', component_property='value'),
      Input(component_id='reaccess-target', component_property='value')]
@@ -98,6 +125,7 @@ def do_calculation(
                 genome_size, exome_size, panel_size, 
                 file_type,
                 retention_years_tier1, retention_years_tier2,
+                tier1_storage_type, tier2_storage_type,
                 volume_growth, reaccess_count, reaccess_target):
     
     if file_type == "BAM":
@@ -131,9 +159,6 @@ def do_calculation(
     running_total_tier1 = 0
     running_total_tier2 = 0
 
-    tier1_access_cost = 0
-    tier2_access_cost = 0.01
-
     for y in year_range:
         yearly_total_gb_stored.append(running_total_gb)
         if y <= retention_years_tier1:
@@ -155,7 +180,11 @@ def do_calculation(
             running_total_tier2 += yearly_total_gb_stored[y-retention_years_tier1]
             # we add new data to tier1
             running_total_tier1 += running_total_gb
-        
+
+        # calculate storage costs
+        tier1_cost = calc_storage_cost(tier1_storage_type, 12 * running_total_tier1)
+        tier2_cost = calc_storage_cost(tier2_storage_type, 12 * running_total_tier2)
+
         # calculate re-access costs
         if (running_total_tier1 + running_total_tier2) > 0:
             total_gb_reaccessed = ((reaccess_count * genome_count / yearly_total_samples) * genome_size) + \
@@ -165,20 +194,21 @@ def do_calculation(
             fraction_in_tier1 = running_total_tier1 / float(running_total_tier1 + running_total_tier2)
             fraction_in_tier2 = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
             
-            tier1_reaccess_cost = total_gb_reaccessed * (1-fraction_in_tier2) * tier1_access_cost
-            tier2_reaccess_cost = total_gb_reaccessed * (fraction_in_tier2) * tier2_access_cost
-            transfer_cost = tier1_marginal_transfer_cost(total_gb_reaccessed * (fraction_in_tier1), dest=reaccess_target) + \
-                            tier2_marginal_transfer_cost(total_gb_reaccessed * (fraction_in_tier2), dest=reaccess_target)
-            reaccess_cost = tier1_reaccess_cost + tier2_reaccess_cost + transfer_cost
+            tier1_reaccess_cost = calc_reaccess_cost(tier1_storage_type, total_gb_reaccessed * (fraction_in_tier1))            
+            tier2_reaccess_cost = calc_reaccess_cost(tier2_storage_type, total_gb_reaccessed * (fraction_in_tier2))
+            
+            tier1_transfer_cost = calc_transfer_cost(tier1_storage_type, reaccess_target, total_gb_reaccessed * (fraction_in_tier1))
+            tier2_transfer_cost = calc_transfer_cost(tier2_storage_type, reaccess_target, total_gb_reaccessed * (fraction_in_tier2))
+            
+            reaccess_cost = tier1_reaccess_cost + tier2_reaccess_cost + tier1_transfer_cost + tier2_transfer_cost
         else:
             reaccess_cost = 0
 
-        # calculate costs
-        s3_cost      = marginal_s3_cost(12 * running_total_tier1)
-        glacier_cost = 0.004 * 12 * running_total_tier2
+        
+        # record costs
         yearly_total_stored.append(running_total_tier1 + running_total_tier2)
         yearly_samples_run.append(running_total_samples)
-        yearly_costs.append(s3_cost + glacier_cost + reaccess_cost)
+        yearly_costs.append(tier1_cost + tier2_cost + reaccess_cost)
         
         # increase total samples and GB generated in this iteration
         running_total_gb = running_total_gb * volume_multiplier

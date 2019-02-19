@@ -9,6 +9,14 @@ custom_size_toggle = html.Div([
     BooleanSwitch(id='control-panel-volumes-pane-toggle', on=False, style={'position': 'relative', 'top': '-2px', 'float': 'left !important', 'display': 'inline-block'})
 ], style={'display': 'inline-block'}, className='pull-right')
 
+storage_types = [
+    {'label': "Amazon S3", 'value': "S3"},
+    {'label': "Amazon S3 Infrequent Access", 'value': "S3IA"},
+    {'label': "Amazon S3 IA Single-AZ", 'value': "S3IASAZ"},
+    {'label': "Amazon Glacier", 'value': "glacier"},
+    {'label': "Amazon Deep Glacier", 'value': "deepglacier"}
+]
+
 control_panel = [
     panel(title="1. Test volumes", 
         additional_controls=[custom_size_toggle],
@@ -70,20 +78,18 @@ control_panel = [
         # have info buttons to describe tiers/differences on AWS (and other cloud providers?)
         container([
             row(["Store data in ", 
-                 html.Div([dcc.Dropdown(disabled=True, options=[
-                    {'label': "Amazon S3", 'value': "S3"},
-                    {'label': "Amazon S3 Single AZ", 'value': "S3SAZ"},
-                    {'label': "Amazon Glacier", 'value': "glacier"}],
-                    value='S3', clearable=False, multi=False, className='border-bottom-input')], style={"display": "inline-block", "width": 200}),
-                 " for ", 
-                 dcc.Input(id='retention-years-tier1', className='border-bottom', min=0, value=2, type='number'),
-                 " years."]),
+                dcc.Dropdown(
+                    id='tier1-storage-type',
+                    options=storage_types,
+                    value='S3', clearable=False, multi=False, className='border-bottom-input', style={"width": "200px", "display": "inline-block"}),
+                " for ", 
+                dcc.Input(id='retention-years-tier1', className='border-bottom', min=0, value=2, type='number'),
+                " years."]),
             row(["Then, store data in ", 
-                 html.Div([dcc.Dropdown(disabled=True, options=[
-                    {'label': "Amazon S3", 'value': "S3"},
-                    {'label': "Amazon S3 Single AZ", 'value': "S3SAZ"},
-                    {'label': "Amazon Glacier", 'value': "glacier"}],
-                    value='glacier', clearable=False, multi=False, className='border-bottom-input')], style={"display": "inline-block", "width": 200}),
+                 dcc.Dropdown(
+                    id='tier2-storage-type',
+                    options=storage_types,
+                    value='glacier', clearable=False, multi=False, className='border-bottom-input', style={"width": "200px", "display": "inline-block"}),
                  " for ",
                  dcc.Input(id='retention-years-tier2', className='border-bottom', min=0, value=3, type='number'),
                  " years."]),

@@ -14,6 +14,7 @@ body {
 
 .border-bottom-input, div.Select, div.Select-control {
 	display: inline-block !important;
+    white-space: nowrap;
 	border: none !important;
 	border-bottom: 1px dashed #AAA !important;
 	border-radius: 0px !important;
@@ -23,6 +24,10 @@ body {
     text-align: center !important;
     position: relative;
     top: 4px;
+}
+
+.Select-menu-outer {
+    width: 350px;
 }
 
 input::-webkit-outer-spin-button, 
