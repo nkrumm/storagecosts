@@ -92,7 +92,7 @@ control_panel = [
                     value='glacier', clearable=False, multi=False, className='border-bottom-input', style={"width": "200px", "display": "inline-block"}),
                  " for ",
                  dcc.Input(id='retention-years-tier2', className='border-bottom', min=0, value=3, type='number'),
-                 " years."]),
+                 " years."])
         ])
     ]),
     panel(title="4. Data re-access", children=[
@@ -116,11 +116,15 @@ control_panel = [
     panel(title="5. Other", children=[
         container([
             row(["Expected volume growth of ", 
-                        dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=10, type='number'),
+                        dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=5, type='number'),
                         " percent per year."]),
-            row(["Inflation ", 
-                        dcc.Input(id='inflation-rate', className='border-bottom', min=0, max=100, value=2, type='number'),
-                        " percent per year."]),
+            row(["Simulate ",
+                 dcc.Input(id='total-years-simulated', className='border-bottom', min=0, max=25, value=15, type='number'),
+                 " years total"
+                ])
+            # row(["Inflation ", 
+            #             dcc.Input(id='inflation-rate', className='border-bottom', min=0, max=100, value=2, type='number'),
+            #             " percent per year."]),
         ])
     ])
 ]

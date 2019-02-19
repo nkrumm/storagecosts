@@ -114,6 +114,7 @@ def calc_transfer_cost(storage_type, destination, gb):
      Input(component_id='tier1-storage-type', component_property='value'),
      Input(component_id='tier2-storage-type', component_property='value'),
      Input(component_id='volume-growth', component_property='value'),
+     Input(component_id='total-years-simulated', component_property='value'),
      Input(component_id='reaccess-count', component_property='value'),
      Input(component_id='reaccess-target', component_property='value')]
 )
@@ -126,7 +127,8 @@ def do_calculation(
                 file_type,
                 retention_years_tier1, retention_years_tier2,
                 tier1_storage_type, tier2_storage_type,
-                volume_growth, reaccess_count, reaccess_target):
+                volume_growth, total_years_simulated,
+                reaccess_count, reaccess_target):
     
     if file_type == "BAM":
         compression = 1
@@ -150,7 +152,7 @@ def do_calculation(
     
     volume_multiplier = (1 + float(volume_growth/100))
     
-    year_range = list(range(1,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, 21)))
+    year_range = list(range(1,max(retention_years_tier1, retention_years_tier1+retention_years_tier2, total_years_simulated+1)))
 
     yearly_costs = []
     yearly_total_stored = []
