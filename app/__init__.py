@@ -239,18 +239,31 @@ def update_plot(data):
             y = data["yearly_costs"],
             name="Yearly Cost"
         ),
+        go.Scatter(
+            x = data["year_range"],
+            y = data["yearly_tier1_storage_cost"],
+            name="Tier 1 Cost",
+            visible = "legendonly"
+        ),
+        go.Scatter(
+            x = data["year_range"],
+            y = data["yearly_tier2_storage_cost"],
+            name="Tier 2 Cost",
+            visible = "legendonly"
+        ),
     ]
     return {
         'data': traces,
-        'layout': go.Layout(
-            margin=dict(l=70,r=40,t=10,b=30),
-            height=500,
-            yaxis = go.layout.YAxis(range=[0,data["y_max"]], title="Yearly Cost", tickprefix="$", fixedrange=True),
-            yaxis2 = go.layout.YAxis(range=[0,data["y_max2"]], showgrid=False, title="Total %s Stored" % data["units"], 
+        'layout': {
+            "margin": dict(l=70,r=60,t=20,b=60),
+            "height": 500,
+            "yaxis": go.layout.YAxis(range=[0,data["y_max"]], title="Yearly Cost", tickprefix="$", fixedrange=True),
+            "yaxis2": go.layout.YAxis(range=[0,data["y_max2"]], showgrid=False, title="Total %s Stored" % data["units"], 
                 ticksuffix=data["units"], overlaying='y', side='right', fixedrange=True),
-            xaxis = go.layout.XAxis(title="Year", fixedrange=True),
-            legend=dict(orientation="h"),
-        )
+            "xaxis": go.layout.XAxis(title="Year", fixedrange=True),
+            "legend": dict(orientation="h", y=1.05, x=0.18),
+            "uirevision": 'same' # preserve layout even when parameters change
+        }
     }
 
 @app.callback(
