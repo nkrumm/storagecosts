@@ -33,33 +33,6 @@ def calc_cost(cost_buckets: list, amount):
         return cost_buckets[0][1] * amount
     return calc_cost(cost_buckets, cost_buckets[0][0]) + calc_cost(cost_buckets[1:], amount - cost_buckets[0][0])
 
-def tier1_marginal_transfer_cost(gb, dest="internet"):
-    if dest == "internet":
-        # S3 to INTERNET
-        # Up to 1 GB / Month  $0.00 per GB
-        # Next 9.999 TB / Month   $0.09 per GB
-        # Next 40 TB / Month  $0.085 per GB
-        # Next 100 TB / Month $0.07 per GB
-        # Greater than 150 TB / Month $0.05 per GB
-        buckets = [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
-        return calc_cost(buckets, gb)
-    else:
-    # to EC2 = $0.02 per GB
-        return 0
-
-def tier2_marginal_transfer_cost(gb, dest="internet"):
-    if dest == "internet":
-        # Glacier to INTERNET
-        # Up to 1 GB / Month  $0.00 per GB
-        # Next 9.999 TB / Month   $0.09 per GB
-        # Next 40 TB / Month  $0.085 per GB
-        # Next 100 TB / Month $0.07 per GB
-        # Greater than 150 TB / Month $0.05 per GB
-        buckets = [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
-        return calc_cost(buckets, gb)
-    else:
-    # to EC2 = $0.02 per GB
-        return gb * 0.02
     
 storage_cost_buckets = {
     "S3": [[50000, 0.023], [450000, 0.022], [np.inf, 0.021]],
