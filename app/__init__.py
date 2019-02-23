@@ -42,6 +42,10 @@ storage_cost_buckets = {
     "S3IASAZ": [[np.inf, 0.01]]
 }
 
+transfer_cost_buckets = {
+    "glacier": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
+}
+
 def calc_storage_cost(storage_type, gb):
     return calc_cost(storage_cost_buckets[storage_type], gb)
 
@@ -55,13 +59,17 @@ def calc_reaccess_cost(storage_type, gb):
 
 
 def calc_transfer_cost(storage_type, destination, gb):
-    if storage_type in ["S3", "glacier", "deepglacier", "S3IA", "S3IASAZ"]:
+    assert destination in ["internet", "amazon"]
+    if storage_type in ["S3", "S3IA", "S3IASAZ"]:
         if destination == "internet":
             return 0.02 * gb
-        elif destination == "amazon":
+        else: #  to amazon
             return 0
-        else:
-            raise("invalid destination")
+    elif storage_type in ["glacier", "deepglacier"]:
+        if destination == "internet":
+            return calc_cost(transfer_cost_buckets["glacier"], gb)
+        else: # to amazon
+            return 0.02 * gb # TODO this assumes non-US-East
     else:
         return 0
 
