@@ -83,15 +83,22 @@ control_panel = [
                     options=storage_types,
                     value='S3', clearable=False, multi=False, className='border-bottom-input', style={"width": "200px", "display": "inline-block"}),
                 " for ", 
-                dcc.Input(id='retention-years-tier1', className='border-bottom', min=0, value=2, type='number'),
-                " years."]),
+                dcc.Input(id='retention-time-tier1', className='border-bottom', min=0, value=2, type='number'),
+                dcc.Dropdown(
+                    id='retention-time-tier1-units',
+                    options=[
+                        {'label': 'year(s)', 'value': 'years'}, 
+                        {'label': 'month(s)', 'value': 'months'}],
+                    value='years', clearable=False, multi=False, className='border-bottom-input', 
+                    style={"width": "100px", "display": "inline-block"})
+                ]),
             row(["Then, store data in ", 
                  dcc.Dropdown(
                     id='tier2-storage-type',
                     options=storage_types,
                     value='glacier', clearable=False, multi=False, className='border-bottom-input', style={"width": "200px", "display": "inline-block"}),
                  " for ",
-                 dcc.Input(id='retention-years-tier2', className='border-bottom', min=0, value=3, type='number'),
+                 dcc.Input(id='retention-years-tier2', className='border-bottom', min=0, value=3, type='number', style={"width": "80px"}),
                  " years."])
         ])
     ]),
