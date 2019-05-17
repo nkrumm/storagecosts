@@ -14,7 +14,15 @@ storage_types = [
     {'label': "Amazon S3 Infrequent Access", 'value': "S3IA"},
     {'label': "Amazon S3 IA Single-AZ", 'value': "S3IASAZ"},
     {'label': "Amazon Glacier", 'value': "glacier"},
-    {'label': "Amazon Deep Glacier", 'value': "deepglacier"}
+    {'label': "Amazon Deep Glacier", 'value': "deepglacier"},
+    {'label': "Google Regional", 'value': "gcp_regional"},
+    {'label': "Google Nearline", 'value': "gcp_nearline"},
+    {'label': "Google Coldline", 'value': "gcp_coldline"},
+    {'label': "Azure ZRS Hot", 'value': "azure_zrs_hot"},
+    {'label': "Azure ZRS Cool", 'value': "azure_zrs_cool"},
+    {'label': "Azure LRS Hot", 'value': "azure_lrs_hot"},
+    {'label': "Azure LRS Cool", 'value': "azure_lrs_cool"},
+    {'label': "Azure LRS Archive", 'value': "azure_lrs_archive"},
 ]
 
 control_panel = [
@@ -111,9 +119,9 @@ control_panel = [
                  html.Div([dcc.Dropdown(
                         id='reaccess-target', 
                         options=[
-                            {'label': "Amazon/EC2", 'value': "amazon"},
-                            {'label': "the internet", 'value': "internet"}
-                        ], value='amazon', clearable=False, multi=False, 
+                            {'label': "to the cloud", 'value': "within-cloud"},
+                            {'label': "to the internet", 'value': "internet"}
+                        ], value='within-cloud', clearable=False, multi=False, 
                         className='border-bottom-input')],
                     style={"display": "inline-block", "width": 200})
                  ])

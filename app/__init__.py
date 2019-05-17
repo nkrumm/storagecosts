@@ -39,40 +39,63 @@ storage_cost_buckets = {
     "glacier": [[np.inf, 0.004]],
     "deepglacier": [[np.inf, 0.00099]],
     "S3IA":    [[np.inf, 0.0125]],
-    "S3IASAZ": [[np.inf, 0.01]]
+    "S3IASAZ": [[np.inf, 0.01]],
+    "gcp_regional": [[np.inf, 0.02]],
+    "gcp_nearline": [[np.inf, 0.01]],
+    "gcp_coldline": [[np.inf, 0.007]],
+    "azure_zrs_hot": [[50000, 0.023], [450000, 0.0221], [np.inf, 0.0212]],
+    "azure_zrs_cool": [[np.inf, 0.0125]],
+    "azure_lrs_hot": [[50000, 0.0184], [450000, 0.0177], [np.inf, 0.017]],
+    "azure_lrs_cool": [[np.inf, 0.01]],
+    "azure_lrs_archive": [[np.inf, 0.002]],
 }
 
 transfer_cost_buckets = {
     "s3": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]],
-    "glacier": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
+    "glacier": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]],
+    "gcp": [[1000, 0.12], [9000, 0.11], [np.inf, 0.08]],
+    "azure": [[5, 0], [9995, 0.087], [40000, 0.083], [100000, 0.07], [np.inf, 0.05]]
 }
 
 def calc_storage_cost(storage_type, gb):
     return calc_cost(storage_cost_buckets[storage_type], gb)
 
 def calc_reaccess_cost(storage_type, gb):
-    if storage_type in ["S3IA", "S3IASAZ"]:
+    if storage_type in ["S3"]:
+        return 0
+    elif storage_type in ["S3IA", "S3IASAZ"]:
         return gb * 0.01
     elif storage_type in ["glacier", "deepglacier"]:
         return gb * 0.0025
-    else:
+    elif storage_type == "gcp_nearline":
+        return gb * 0.01
+    elif storage_type == "gcp_coldline":
+        return gb * 0.05
+    elif storage_type in ["azure_lrs_hot", "azzure_zrs_hot"]:
         return 0
+    elif storage_type in ["azure_lrs_cool", "azzure_zrs_cool"]:
+        return gb * 0.01
+    elif storage_type in ["azure_lrs_archive"]:
+        return gb * 0.02
+    else:
+        raise Exception("unknown reaccess costs")
 
 
 def calc_transfer_cost(storage_type, destination, gb):
-    assert destination in ["internet", "amazon"]
-    if storage_type in ["S3", "S3IA", "S3IASAZ"]:
-        if destination == "internet":
-            return calc_cost(transfer_cost_buckets["s3"], gb)
-        else: #  to amazon, within same region
-            return 0
-    elif storage_type in ["glacier", "deepglacier"]:
-        if destination == "internet":
-            return calc_cost(transfer_cost_buckets["glacier"], gb)
-        else: # to amazon, within same region
-            return 0
-    else:
+    assert destination in ["internet", "within-cloud"]
+    if destination == "within-cloud":
         return 0
+    else: # to internet
+        if storage_type in ["S3", "S3IA", "S3IASAZ"]:
+            return calc_cost(transfer_cost_buckets["s3"], gb)
+        elif storage_type in ["glacier", "deepglacier"]:
+            return calc_cost(transfer_cost_buckets["glacier"], gb)
+        elif storage_type.startswith("gcp"):
+            return calc_cost(transfer_cost_buckets["gcp"], gb)
+        elif storage_type.startswith("azure"):
+            return calc_cost(transfer_cost_buckets["azure"], gb)
+        else:
+            raise Exception("unknown transfer costs")
 
 def get_compression_factor(file_type):
     if file_type == "BAM":
