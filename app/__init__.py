@@ -399,7 +399,7 @@ def update_stats(data):
     else:
         cost_stats = []
     return [
-        stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost),
+        stat_summary_box("Total lifetime cost: ", '${:,}'.format(lifetime_cost)),
         stat_summary_box("Average cost per test: ", cost_stats)   
     ]
 
