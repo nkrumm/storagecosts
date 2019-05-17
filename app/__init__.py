@@ -131,7 +131,7 @@ def do_calculation(
                 volume_growth, total_years_simulated,
                 reaccess_count, reaccess_target,
                 interval):
-    
+
     compression = get_compression_factor(file_type)
 
     if not is_custom:
@@ -267,6 +267,16 @@ def do_calculation(
         "interval": int(interval),
         "y_max": int(y_max),
         "y_max2": int(y_max2),
+        "test_count_fractional": {  
+            "genome": genome_count / yearly_total_samples,
+            "exome": exome_count / yearly_total_samples,
+            "panel": panel_count / yearly_total_samples,
+        },
+        "test_gb_fractional": {
+            "genome": (genome_count * genome_size) / yearly_total_gb,
+            "exome": (exome_count * exome_size) / yearly_total_gb,
+            "panel": (panel_count * panel_size) / yearly_total_gb,
+        }
     }
     # see here for info about the `default` arg (needed to serialize np.int64s in python3)
     # https://stackoverflow.com/questions/11942364/typeerror-integer-is-not-json-serializable-when-serializing-json-in-python
@@ -377,12 +387,20 @@ def update_stats(data):
     lifetime_cost = int(np.array(data["costs_array"]).sum())
     total_samples = np.array(data["samples_run_array"]).sum()
     if total_samples > 0:
-        cost_per_sample = lifetime_cost / total_samples
+        cost_stats = []
+        for tt in ["genome", "exome", "panel"]:
+            if data["test_gb_fractional"][tt] > 0:
+                cost = float(lifetime_cost) * data["test_gb_fractional"][tt] / (total_samples * data["test_count_fractional"][tt])
+                e = html.Div([
+                        html.Span("%s: " % tt, style={"fontSize": 21, "fontWeight": 400, "paddingRight": 6}),
+                        html.Span("$%0.2f" % cost)
+                ])
+                cost_stats.append(e)
     else:
-        cost_per_sample = 0
+        cost_stats = []
     return [
         stat_summary_box("Total lifetime cost: ", "$%s" % lifetime_cost),
-        stat_summary_box("Average cost per test: ", "$%0.2f" % cost_per_sample)
+        stat_summary_box("Average cost per test: ", cost_stats)   
     ]
 
 @app.callback(

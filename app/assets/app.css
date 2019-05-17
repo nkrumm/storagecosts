@@ -79,5 +79,5 @@ h4.stats-value {
 }
 
 #stats-boxes > div.well {
-    height: 87px;
+    min-height: 87px;
 }
