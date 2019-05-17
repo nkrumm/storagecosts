@@ -43,6 +43,7 @@ storage_cost_buckets = {
 }
 
 transfer_cost_buckets = {
+    "s3": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]],
     "glacier": [[1, 0], [9999, 0.09], [40000, 0.085], [100000, 0.07], [np.inf, 0.05]]
 }
 
@@ -62,14 +63,14 @@ def calc_transfer_cost(storage_type, destination, gb):
     assert destination in ["internet", "amazon"]
     if storage_type in ["S3", "S3IA", "S3IASAZ"]:
         if destination == "internet":
-            return 0.02 * gb
-        else: #  to amazon
+            return calc_cost(transfer_cost_buckets["s3"], gb)
+        else: #  to amazon, within same region
             return 0
     elif storage_type in ["glacier", "deepglacier"]:
         if destination == "internet":
             return calc_cost(transfer_cost_buckets["glacier"], gb)
-        else: # to amazon
-            return 0.02 * gb # TODO this assumes non-US-East
+        else: # to amazon, within same region
+            return 0
     else:
         return 0
 
