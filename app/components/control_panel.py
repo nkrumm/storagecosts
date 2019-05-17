@@ -36,13 +36,22 @@ control_panel = [
             children=[
                 container([
                     row([dcc.Input(id='simple-volumes-genome-count', className='border-bottom', min=0, value=0, type='number'),
-                        " Genomes per year ", html.Span("(30x coverage / 120GB each).", className='text-muted', style={'fontSize': "14px"})]),
+                        " Genomes per year ", html.Span("(30x coverage / ~120GB BAM size).", className='text-muted', style={'fontSize': "14px"})]),
                     row([dcc.Input(id='simple-volumes-exomes-count', className='border-bottom', min=0, value=0, type='number'),
-                        " Exomes per year ", html.Span("(6GB each).", className='text-muted', style={'fontSize': "14px"})]),
+                        " Exomes per year ", html.Span("(~6GB BAM size).", className='text-muted', style={'fontSize': "14px"})]),
                     row([dcc.Input(id='simple-volumes-large-panel-count', className='border-bottom', min=0, value=0, type='number'),
-                        " Large panels per year ", html.Span("(300 genes / 1GB each).", className='text-muted', style={'fontSize': "14px"})]),
-                    # row([dcc.Input(id='simple-volumes-small-panel-count', className='border-bottom', min=0, value=0, type='number'),
-                    #     " Small panel (30 genes) per year"]),
+                        " Large panels per year ", html.Span("(300 genes / ~1GB BAM size).", className='text-muted', style={'fontSize': "14px"})]),
+                    row([html.Em("Files are stored as: "), dcc.RadioItems(
+                        id='file-type-radio',
+                        options=[
+                            {'label': 'BAM', 'value': 'BAM'},
+                            {'label': 'CRAM v2', 'value': 'CRAMV2'},
+                            {'label': 'CRAM v3', 'value': 'CRAMV3'}
+                        ],
+                        value='BAM',
+                        style={"display": "inline"},
+                        labelStyle={'fontWeight': 'normal', 'paddingLeft': 10}
+                    )], style={"fontSize": "14px", "color": "#777"}),
                 ])
             ]),
         html.Div(
@@ -64,24 +73,11 @@ control_panel = [
                          dcc.Input(id='volumes-panel-count', className='border-bottom', min=0, value=0, type='number'),
                          " tests of ",
                          dcc.Input(id='volumes-panel-size', className='border-bottom', min=0.1, value=1, type='number'),
-                         " GB each."])
+                         " GB each."]),
                 ])
             ])
     ]),
-    panel(title="2. File types", children=[
-        html.Div([dcc.RadioItems(
-            id='file-type-radio',
-            options=[
-                {'label': 'BAM', 'value': 'BAM'},
-                {'label': 'CRAM v2', 'value': 'CRAMV2'},
-                {'label': 'CRAM v3', 'value': 'CRAMV3'}
-            ],
-            value='BAM',
-            labelStyle={'fontWeight': 'normal', 'paddingLeft': 10}
-        )])
-        ]),
-        # Likely just some check/radio boxes
-    panel(title="3. Retention time and storage", children=[
+    panel(title="2. Retention time and storage", children=[
         # use a slider to create two storage tiers
         # have info buttons to describe tiers/differences on AWS (and other cloud providers?)
         container([
@@ -110,7 +106,7 @@ control_panel = [
                  " years."])
         ])
     ]),
-    panel(title="4. Data re-access", children=[
+    panel(title="3. Data re-access", children=[
         #"rate/# of cases accessed each year; potentially split by years/storage tiers"
         container([
             row(["Re-access", 
@@ -128,7 +124,7 @@ control_panel = [
 
         ])
     ]),
-    panel(title="5. Other", children=[
+    panel(title="4. Other", children=[
         container([
             row(["Expected volume growth of ", 
                         dcc.Input(id='volume-growth', className='border-bottom', min=0, max=100, value=5, type='number'),
