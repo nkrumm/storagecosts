@@ -357,6 +357,7 @@ def update_plot(data):
                         range=[0,data["y_max"]],
                         title="Total %s Cost" % interval_str,
                         tickprefix="$",
+                        hoverformat = '.0f',
                         fixedrange=True),
             "yaxis2": go.layout.YAxis(
                         range=[0,data["y_max2"]],
@@ -364,6 +365,7 @@ def update_plot(data):
                         title="Total %s Stored" % data["units"], 
                         ticksuffix=data["units"],
                         overlaying='y',
+                        hoverformat = '.1f',
                         side='right',
                         fixedrange=True),
             "xaxis": go.layout.XAxis(
