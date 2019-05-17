@@ -98,7 +98,7 @@ control_panel = [
                         {'label': 'year(s)', 'value': 'years'}, 
                         {'label': 'month(s)', 'value': 'months'}],
                     value='years', clearable=False, multi=False, className='border-bottom-input', 
-                    style={"width": "100px", "display": "inline-block"})
+                    style={"width": "100px", "display": "inline-block"}), "."
                 ]),
             row(["Then, store data in ", 
                  dcc.Dropdown(
@@ -123,8 +123,8 @@ control_panel = [
                             {'label': "to the internet", 'value': "internet"}
                         ], value='within-cloud', clearable=False, multi=False, 
                         className='border-bottom-input')],
-                    style={"display": "inline-block", "width": 200})
-                 ])
+                    style={"display": "inline-block", "width": 200}),
+                 "."])
 
         ])
     ]),
@@ -135,7 +135,7 @@ control_panel = [
                         " percent per year."]),
             row(["Simulate ",
                  dcc.Input(id='total-years-simulated', className='border-bottom', min=0, max=25, value=15, type='number'),
-                 " years total"
+                 " years total."
                 ]),
             row(["Plot data in  ",
                  dcc.Dropdown(
