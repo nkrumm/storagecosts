@@ -271,12 +271,12 @@ def do_calculation(
             "genome": genome_count / yearly_total_samples,
             "exome": exome_count / yearly_total_samples,
             "panel": panel_count / yearly_total_samples,
-        },
+        } if yearly_total_samples > 0 else {"genome": 0, "exome": 0, "panel": 0},
         "test_gb_fractional": {
             "genome": (genome_count * genome_size) / yearly_total_gb,
             "exome": (exome_count * exome_size) / yearly_total_gb,
             "panel": (panel_count * panel_size) / yearly_total_gb,
-        }
+        } if yearly_total_gb > 0 else {"genome": 0, "exome": 0, "panel": 0},
     }
     # see here for info about the `default` arg (needed to serialize np.int64s in python3)
     # https://stackoverflow.com/questions/11942364/typeerror-integer-is-not-json-serializable-when-serializing-json-in-python
