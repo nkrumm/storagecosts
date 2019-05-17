@@ -6,7 +6,7 @@ from app.components.helpers import row, col, container, panel, stat_summary_box,
 
 output_panel = [
     html.Div(stat_summary_box(
-        "Costs per year",
+        "Costs over time",
         dcc.Graph(id='plot', config={'displayModeBar': False}, style={'width': 800})
     )),
     row([

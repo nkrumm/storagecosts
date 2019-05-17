@@ -73,7 +73,24 @@ def calc_transfer_cost(storage_type, destination, gb):
     else:
         return 0
 
+def get_compression_factor(file_type):
+    if file_type == "BAM":
+        return 1
+    elif file_type == "CRAMV2":
+        return 0.7
+    elif file_type == "CRAMV3":
+        return 0.6
+    else:
+        raise("Invalid compression type")
 
+
+def resample(array, interval, func=np.sum):
+    a = np.array(array).reshape(-1, interval)
+    return list(np.apply_along_axis(func, 1, a))
+
+def convert_int64(o):
+        if isinstance(o, np.int64): return int(o)  
+        raise TypeError
 
 @app.callback(
     Output('data-store', 'children'),
@@ -98,7 +115,8 @@ def calc_transfer_cost(storage_type, destination, gb):
      Input(component_id='volume-growth', component_property='value'),
      Input(component_id='total-years-simulated', component_property='value'),
      Input(component_id='reaccess-count', component_property='value'),
-     Input(component_id='reaccess-target', component_property='value')]
+     Input(component_id='reaccess-target', component_property='value'),
+     Input(component_id='time-interval-setting', component_property='value')]
 )
 def do_calculation(
                 is_custom,
@@ -111,16 +129,10 @@ def do_calculation(
                 retention_years_tier2,
                 tier1_storage_type, tier2_storage_type,
                 volume_growth, total_years_simulated,
-                reaccess_count, reaccess_target):
+                reaccess_count, reaccess_target,
+                interval):
     
-    if file_type == "BAM":
-        compression = 1
-    elif file_type == "CRAMV2":
-        compression = 0.7
-    elif file_type == "CRAMV3":
-        compression = 0.6
-    else:
-        raise("Invalid compression type")
+    compression = get_compression_factor(file_type)
 
     if not is_custom:
         genome_count = simple_genome_count
@@ -130,23 +142,33 @@ def do_calculation(
         panel_count = simple_large_panel_count
         panel_size = 1 * compression
 
+    # note this routine defines timepoints in MONTHS
+    
+    # convert years from input to months (for calculations)
     if retention_time_tier1_units == "years":
-        timepoints = list(range(1,max(retention_time_tier1, retention_time_tier1+retention_years_tier2, total_years_simulated+1)))
-        running_total_samples = yearly_total_samples = genome_count + exome_count + panel_count
-        running_total_gb = yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
-        volume_multiplier = (1 + float(volume_growth/100))
-    else:
-        retention_years_tier2 = retention_years_tier2 * 12
-        total_years_simulated = total_years_simulated * 12
-        m = max(retention_time_tier1, retention_time_tier1+retention_years_tier2, total_years_simulated+1)
-        timepoints = list(range(1,m))
-        yearly_total_samples = (genome_count + exome_count + panel_count)
-        running_total_samples = yearly_total_samples / 12.
-        yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
-        running_total_gb = yearly_total_gb / 12.
-        volume_multiplier = (1 + float(volume_growth/12./100))
-        reaccess_count = reaccess_count/12.
+        retention_time_tier1 = retention_time_tier1 * 12
+    retention_time_tier2 = retention_years_tier2 * 12
+    total_time_simulated = total_years_simulated * 12
 
+    # find maximum timeframe we need to calculate
+    m = max(retention_time_tier1, retention_time_tier1+retention_time_tier2, total_time_simulated+1)
+    timepoints = list(range(1,m))
+
+    # for first month, define running_total_samples as 1/12th of total yearly samples
+    yearly_total_samples = (genome_count + exome_count + panel_count)
+    running_total_samples = yearly_total_samples / 12.
+    
+    # same for total gb stored
+    yearly_total_gb = (genome_count * genome_size) + (exome_count * exome_size) + (panel_count * panel_size)
+    running_total_gb = yearly_total_gb / 12.
+    
+    # define monthly multiplier based on yearly percent growth
+    monthly_volume_multiplier = (1 + float(volume_growth/12./100))
+
+    # same for reaccess-count
+    monthly_reaccess_count = reaccess_count/12.
+
+    # initialize arrays and counters
     costs_array = []
     tier1_storage_cost_array = []
     tier2_storage_cost_array = []
@@ -163,7 +185,7 @@ def do_calculation(
             # while in tier1 retention phase, all data is simply 
             # put into tier1 storage
             running_total_tier1 += running_total_gb
-        elif y <= (retention_time_tier1 + retention_years_tier2):
+        elif y <= (retention_time_tier1 + retention_time_tier2):
             # once we are in the range where tier2 storage is used
             # data from `y - retention_time_tier1` is moved into 
             # tier2, and the runnign total is added to tier1
@@ -172,7 +194,7 @@ def do_calculation(
             running_total_tier1 += running_total_gb
         else:
             # Once we are outside the life of the data, we discard tier2 
-            running_total_tier2 -= total_gb_stored_array[y-(retention_time_tier1 + retention_years_tier2)]
+            running_total_tier2 -= total_gb_stored_array[y-(retention_time_tier1 + retention_time_tier2)]
             # data is still moved from tier1 to tier2
             running_total_tier1 -= total_gb_stored_array[y-retention_time_tier1]
             running_total_tier2 += total_gb_stored_array[y-retention_time_tier1]
@@ -180,18 +202,14 @@ def do_calculation(
             running_total_tier1 += running_total_gb
 
         # calculate storage costs
-        if retention_time_tier1_units == "years":
-            tier1_cost = calc_storage_cost(tier1_storage_type, running_total_tier1*12)
-            tier2_cost = calc_storage_cost(tier2_storage_type, running_total_tier2*12)
-        else:
-            tier1_cost = calc_storage_cost(tier1_storage_type, running_total_tier1)
-            tier2_cost = calc_storage_cost(tier2_storage_type, running_total_tier2)
+        tier1_cost = calc_storage_cost(tier1_storage_type, running_total_tier1)
+        tier2_cost = calc_storage_cost(tier2_storage_type, running_total_tier2)
 
-        # calculate re-access costs
+        # calculate re-access costs, includes transfer cost
         if (running_total_tier1 + running_total_tier2) > 0:
-            total_gb_reaccessed = ((reaccess_count * genome_count / yearly_total_samples) * genome_size) + \
-                                  ((reaccess_count * exome_count / yearly_total_samples) * exome_size) + \
-                                  ((reaccess_count * panel_count / yearly_total_samples) * panel_size)
+            total_gb_reaccessed = ((monthly_reaccess_count * genome_count / yearly_total_samples) * genome_size) + \
+                                  ((monthly_reaccess_count * exome_count / yearly_total_samples) * exome_size) + \
+                                  ((monthly_reaccess_count * panel_count / yearly_total_samples) * panel_size)
 
             fraction_in_tier1 = running_total_tier1 / float(running_total_tier1 + running_total_tier2)
             fraction_in_tier2 = running_total_tier2 / float(running_total_tier1 + running_total_tier2)
@@ -207,7 +225,7 @@ def do_calculation(
             reaccess_cost = 0
 
         
-        # record costs
+        # record costs in arrays
         tier1_storage_cost_array.append(tier1_cost)
         tier2_storage_cost_array.append(tier2_cost)
         reaccess_cost_array.append(reaccess_cost)
@@ -216,9 +234,18 @@ def do_calculation(
         costs_array.append(tier1_cost + tier2_cost + reaccess_cost)
         
         # increase total samples and GB generated in this iteration
-        running_total_gb = running_total_gb * volume_multiplier
-        running_total_samples = running_total_samples * volume_multiplier
+        running_total_gb = running_total_gb * monthly_volume_multiplier
+        running_total_samples = running_total_samples * monthly_volume_multiplier
 
+    # resample data to 1-month, 3-month, 6-month or 12-month intervals
+    timepoints = list(((np.array(timepoints)-1).reshape(-1, interval)[:,0]/interval).astype(int))
+    total_stored_array = resample(total_stored_array, interval, max)
+    samples_run_array = resample(samples_run_array, interval)
+    costs_array = resample(costs_array, interval)
+    tier1_storage_cost_array = resample(tier1_storage_cost_array, interval)
+    tier2_storage_cost_array = resample(tier2_storage_cost_array, interval)
+    reaccess_cost_array = resample(reaccess_cost_array, interval)
+    
     y_max = max(50, max(costs_array) * 1.1)
     y_max2 = max(50, max(total_stored_array) * 1.8)
     if y_max2 >= 1000:
@@ -230,17 +257,20 @@ def do_calculation(
 
     data = {
         "timepoints": timepoints,
-        "yearly_total_stored": total_stored_array,
-        "yearly_samples_run": samples_run_array,
-        "yearly_costs": costs_array,
-        "yearly_tier1_storage_cost": tier1_storage_cost_array,
-        "yearly_tier2_storage_cost": tier2_storage_cost_array,
-        "yearly_reaccess_cost": reaccess_cost_array,
+        "total_stored_array": total_stored_array,
+        "samples_run_array": samples_run_array,
+        "costs_array": costs_array,
+        "tier1_storage_cost_array": tier1_storage_cost_array,
+        "tier2_storage_cost_array": tier2_storage_cost_array,
+        "reaccess_cost_array": reaccess_cost_array,
         "units": units,
-        "y_max": y_max,
-        "y_max2": y_max2
+        "interval": int(interval),
+        "y_max": int(y_max),
+        "y_max2": int(y_max2),
     }
-    return json.dumps(data)
+    # see here for info about the `default` arg (needed to serialize np.int64s in python3)
+    # https://stackoverflow.com/questions/11942364/typeerror-integer-is-not-json-serializable-when-serializing-json-in-python
+    return json.dumps(data, default=convert_int64)
 
 
 @app.callback(
@@ -248,28 +278,38 @@ def do_calculation(
     [Input(component_id='data-store', component_property='children')])
 def update_plot(data):
     data = json.loads(data)
+    
+    if data["interval"] == 1:
+        interval_str = "Monthly"
+        x_tickvals = list(np.array(data["timepoints"]).reshape(-1,12)[:,0])
+        x_ticklabels = x_tickvals
+    else:
+        interval_str = "Yearly"
+        x_tickvals = data["timepoints"]
+        x_ticklabels = x_tickvals
+
     traces = [
         go.Bar(
             x= data["timepoints"],
-            y = data["yearly_total_stored"],
+            y = data["total_stored_array"],
             name="Total %s Stored" % data["units"],
             yaxis='y2',
             opacity=0.6,
         ),
         go.Scatter(
             x = data["timepoints"],
-            y = data["yearly_costs"],
-            name="Yearly Cost"
+            y = data["costs_array"],
+            name="Total %s Cost" % interval_str
         ),
         go.Scatter(
             x = data["timepoints"],
-            y = data["yearly_tier1_storage_cost"],
+            y = data["tier1_storage_cost_array"],
             name="Tier 1 Cost",
             visible = "legendonly"
         ),
         go.Scatter(
             x = data["timepoints"],
-            y = data["yearly_tier2_storage_cost"],
+            y = data["tier2_storage_cost_array"],
             name="Tier 2 Cost",
             visible = "legendonly"
         ),
@@ -279,10 +319,24 @@ def update_plot(data):
         'layout': {
             "margin": dict(l=70,r=60,t=20,b=60),
             "height": 500,
-            "yaxis": go.layout.YAxis(range=[0,data["y_max"]], title="Yearly Cost", tickprefix="$", fixedrange=True),
-            "yaxis2": go.layout.YAxis(range=[0,data["y_max2"]], showgrid=False, title="Total %s Stored" % data["units"], 
-                ticksuffix=data["units"], overlaying='y', side='right', fixedrange=True),
-            "xaxis": go.layout.XAxis(title="Year", fixedrange=True),
+            "yaxis": go.layout.YAxis(
+                        range=[0,data["y_max"]],
+                        title="Total %s Cost" % interval_str,
+                        tickprefix="$",
+                        fixedrange=True),
+            "yaxis2": go.layout.YAxis(
+                        range=[0,data["y_max2"]],
+                        showgrid=False,
+                        title="Total %s Stored" % data["units"], 
+                        ticksuffix=data["units"],
+                        overlaying='y',
+                        side='right',
+                        fixedrange=True),
+            "xaxis": go.layout.XAxis(
+                        title=interval_str.replace("ly", "s"),
+                        ticktext=x_ticklabels,
+                        tickvals=x_tickvals,
+                        fixedrange=True),
             "legend": dict(orientation="h", y=1.05, x=0.18),
             "uirevision": 'same' # preserve layout even when parameters change
         }
@@ -295,9 +349,9 @@ def update_piechart(data):
     data = json.loads(data)
     labels = ["Tier 1 Cost", "Tier 2 Cost", "Reaccess Cost"]
     values = [
-        sum(data["yearly_tier1_storage_cost"]),
-        sum(data["yearly_tier2_storage_cost"]),
-        sum(data["yearly_reaccess_cost"])
+        sum(data["tier1_storage_cost_array"]),
+        sum(data["tier2_storage_cost_array"]),
+        sum(data["reaccess_cost_array"])
     ]
     traces = [go.Pie(
         labels=labels, values=values, 
@@ -320,8 +374,8 @@ def update_piechart(data):
     [Input(component_id='data-store', component_property='children')])
 def update_stats(data):
     data = json.loads(data)
-    lifetime_cost = int(np.array(data["yearly_costs"]).sum())
-    total_samples = np.array(data["yearly_samples_run"]).sum()
+    lifetime_cost = int(np.array(data["costs_array"]).sum())
+    total_samples = np.array(data["samples_run_array"]).sum()
     if total_samples > 0:
         cost_per_sample = lifetime_cost / total_samples
     else:

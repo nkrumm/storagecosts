@@ -128,10 +128,18 @@ control_panel = [
             row(["Simulate ",
                  dcc.Input(id='total-years-simulated', className='border-bottom', min=0, max=25, value=15, type='number'),
                  " years total"
+                ]),
+            row(["Plot data in  ",
+                 dcc.Dropdown(
+                        id='time-interval-setting', 
+                        options=[
+                            {'label': "monthly", 'value': 1},
+                            {'label': "yearly", 'value': 12},
+                        ], value=12, clearable=False, multi=False, 
+                        className='border-bottom-input',
+                        style={"display": "inline-block", "width": 200}),
+                " intervals."
                 ])
-            # row(["Inflation ", 
-            #             dcc.Input(id='inflation-rate', className='border-bottom', min=0, max=100, value=2, type='number'),
-            #             " percent per year."]),
         ])
     ])
 ]
