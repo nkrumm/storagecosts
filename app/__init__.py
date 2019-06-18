@@ -67,13 +67,15 @@ def calc_reaccess_cost(storage_type, gb):
         return gb * 0.01
     elif storage_type in ["glacier", "deepglacier"]:
         return gb * 0.0025
+    elif storage_type == "gcp_regional":
+        return 0
     elif storage_type == "gcp_nearline":
         return gb * 0.01
     elif storage_type == "gcp_coldline":
         return gb * 0.05
-    elif storage_type in ["azure_lrs_hot", "azzure_zrs_hot"]:
+    elif storage_type in ["azure_lrs_hot", "azure_zrs_hot"]:
         return 0
-    elif storage_type in ["azure_lrs_cool", "azzure_zrs_cool"]:
+    elif storage_type in ["azure_lrs_cool", "azure_zrs_cool"]:
         return gb * 0.01
     elif storage_type in ["azure_lrs_archive"]:
         return gb * 0.02
