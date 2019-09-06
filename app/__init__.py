@@ -47,7 +47,7 @@ storage_cost_buckets = {
     "azure_zrs_cool": [[np.inf, 0.0125]],
     "azure_lrs_hot": [[50000, 0.0184], [450000, 0.0177], [np.inf, 0.017]],
     "azure_lrs_cool": [[np.inf, 0.01]],
-    "azure_lrs_archive": [[np.inf, 0.002]],
+    "azure_lrs_archive": [[np.inf, 0.00099]],
 }
 
 transfer_cost_buckets = {
