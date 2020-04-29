@@ -43,6 +43,7 @@ storage_cost_buckets = {
     "gcp_regional": [[np.inf, 0.02]],
     "gcp_nearline": [[np.inf, 0.01]],
     "gcp_coldline": [[np.inf, 0.007]],
+    "gcp_archive": [[np.inf, 0.0025]],
     "azure_zrs_hot": [[50000, 0.023], [450000, 0.0221], [np.inf, 0.0212]],
     "azure_zrs_cool": [[np.inf, 0.0125]],
     "azure_lrs_hot": [[50000, 0.0184], [450000, 0.0177], [np.inf, 0.017]],
@@ -72,6 +73,8 @@ def calc_reaccess_cost(storage_type, gb):
     elif storage_type == "gcp_nearline":
         return gb * 0.01
     elif storage_type == "gcp_coldline":
+        return gb * 0.02
+    elif storage_type == "gcp_archive":
         return gb * 0.05
     elif storage_type in ["azure_lrs_hot", "azure_zrs_hot"]:
         return 0

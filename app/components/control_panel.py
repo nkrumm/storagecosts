@@ -18,6 +18,7 @@ storage_types = [
     {'label': "Google Regional", 'value': "gcp_regional"},
     {'label': "Google Nearline", 'value': "gcp_nearline"},
     {'label': "Google Coldline", 'value': "gcp_coldline"},
+    {'label': "Google Archive", 'value': "gcp_archive"},
     {'label': "Azure ZRS Hot", 'value': "azure_zrs_hot"},
     {'label': "Azure ZRS Cool", 'value': "azure_zrs_cool"},
     {'label': "Azure LRS Hot", 'value': "azure_lrs_hot"},
