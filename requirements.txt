@@ -1,7 +1,9 @@
 Flask==1.0.2
-dash==0.32.1
-dash_daq==0.1.4
-dash-core-components==0.40.3
-dash-html-components==0.13.2
+dash==1.11.0
+dash-core-components==1.9.1
+dash-daq==0.5.0
+dash-html-components==1.0.3
+dash-renderer==1.4.0
+dash-table==4.6.2
 gunicorn==19.9.0
 numpy==1.15.4
