@@ -6,4 +6,4 @@ dash-html-components==1.0.3
 dash-renderer==1.4.0
 dash-table==4.6.2
 gunicorn==19.9.0
-numpy==1.15.4
+numpy==1.22.0
